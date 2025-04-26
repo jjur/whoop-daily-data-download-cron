@@ -6,6 +6,14 @@ from datetime import datetime, timedelta
 import uuid
 from dotenv import load_dotenv
 
+# Optional PyPushBullet import (won't fail if not installed)
+try:
+    from PyPushBullet.client import PushBullet
+    PUSHBULLET_AVAILABLE = True
+except ImportError:
+    logging.warning("PyPushBullet not installed. Notifications will not be sent.")
+    PUSHBULLET_AVAILABLE = False
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -97,8 +105,34 @@ def main():
         sleep_count = fetch_and_save_sleep_data(client, yesterday)
         logger.info(f"Processed {sleep_count} sleep events.")
         
+        # Send success notification if enabled
+        if hr_count > 0 or sleep_count > 0:
+            send_notification(True, f"Successfully downloaded {hr_count} HR points and {sleep_count} sleep events for {yesterday}")
+        else:
+            send_notification(False, f"No data downloaded for {yesterday}")
+        
     except Exception as e:
         logger.error(f"An error occurred: {e}")
+        # Send failure notification
+        send_notification(False, f"Failed to download Whoop data: {str(e)}")
+
+def send_notification(success, message):
+    """Send a PyPushBullet notification if configured"""
+    if not PUSHBULLET_AVAILABLE:
+        return
+    
+    api_key = os.getenv("PUSHBULLET_API_KEY")
+    if not api_key:
+        return
+    
+    try:
+        # Using PyPushBullet library instead of pushbullet.py
+        pb = PushBullet(api_key)
+        title = "Whoop Data Download: Success" if success else "Whoop Data Download: Failed"
+        pb.send_notification(title, message)
+        logger.info(f"Sent PyPushBullet notification: {title}")
+    except Exception as e:
+        logger.error(f"Failed to send PyPushBullet notification: {e}")
 
 if __name__ == "__main__":
     main()

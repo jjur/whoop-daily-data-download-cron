@@ -8,6 +8,7 @@ A Python application that automatically downloads and stores daily heart rate an
 - Daily automatic download of sleep events
 - Data stored as JSON files organized by date
 - Logging system for tracking operations
+- Optional PyPushBullet notifications for successful/failed downloads
 
 ## Setup
 
@@ -16,10 +17,11 @@ A Python application that automatically downloads and stores daily heart rate an
    ```
    pip install -r requirements.txt
    ```
-3. Create a `.env` file in the root directory with your Whoop credentials:
+3. Create a `.env` file in the root directory with your credentials:
    ```
    WHOOP_EMAIL=your-email@example.com
    WHOOP_PASSWORD=your-password
+   PUSHBULLET_API_KEY=your-pushbullet-api-key  # Optional
    ```
 
 ## Usage
