@@ -3,3 +3,6 @@
 
 # Data directory
 data/
+logfile.log
+.gitignore
+logfile.log2

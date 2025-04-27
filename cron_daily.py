@@ -3,7 +3,6 @@ import logging
 import json
 import os
 from datetime import datetime, timedelta
-import uuid
 from dotenv import load_dotenv
 
 # Optional PyPushBullet import (won't fail if not installed)
@@ -57,16 +56,19 @@ def fetch_and_save_sleep_data(client, date):
         
         # Save each sleep event as a separate JSON file
         for sleep_event in sleep_data:
-            # Generate a unique filename for each sleep event
-            sleep_id = sleep_event.get('id', uuid.uuid4().hex[:8])
+            # Use the activity ID instead of generating a random UUID
+            sleep_id = sleep_event.get('activity_id')
+            if not sleep_id:
+                logger.warning("Missing activity_id for sleep event, skipping.")
+                continue
+
             start_time = sleep_event.get('start', date).split('T')[0]
-            
             filename = os.path.join("data", "sleep", f"sleep_{start_time}_{sleep_id}.json")
-            
+
             # Save data to JSON file
             with open(filename, 'w') as file:
                 json.dump(sleep_event, file, indent=4)
-            
+
             logger.info(f"Saved sleep event to {filename}.")
             sleep_count += 1
         
