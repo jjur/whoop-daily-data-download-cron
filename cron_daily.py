@@ -93,6 +93,59 @@ def retry_with_backoff(func, retries, backoff_intervals, *args, **kwargs):
                 logger.error("All retry attempts failed.")
                 raise
 
+def get_missing_dates():
+    """Identify missing dates for the past 30 days based on heartRate data."""
+    existing_dates = set()
+    heart_rate_dir = os.path.join("data", "heartRate")
+
+    # Collect existing dates from heartRate filenames
+    for filename in os.listdir(heart_rate_dir):
+        if filename.startswith("heartRate_") and filename.endswith(".json"):
+            date_str = filename[len("heartRate_"):-len(".json")]
+            existing_dates.add(date_str)
+
+    # Generate the past 30 days
+    missing_dates = []
+    for i in range(1, 31):
+        date = (datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
+        if date not in existing_dates:
+            missing_dates.append(date)
+
+    return missing_dates
+
+def redownload_missing_data():
+    """Redownload missing heart rate and sleep data for the past 30 days."""
+    # Get credentials from environment variables
+    email = os.getenv("WHOOP_EMAIL")
+    password = os.getenv("WHOOP_PASSWORD")
+
+    if not email or not password:
+        logger.error("Credentials not found in .env file. Please set WHOOP_EMAIL and WHOOP_PASSWORD.")
+        return
+
+    # Initialize the Whoop client
+    try:
+        client = WhoopClient(username=email, password=password)
+        logger.info("Whoop client initialized.")
+    except Exception as e:
+        logger.error(f"Failed to initialize Whoop client: {e}")
+        return
+
+    # Get missing dates
+    missing_dates = get_missing_dates()
+    logger.info(f"Missing dates identified: {missing_dates}")
+
+    for date in missing_dates:
+        logger.info(f"Processing missing data for date: {date}")
+
+        # Fetch and save heart rate data
+        hr_count = fetch_and_save_hr_data(client, date)
+        logger.info(f"Processed {hr_count} heart rate data points for {date}.")
+
+        # Fetch and save sleep data
+        sleep_count = fetch_and_save_sleep_data(client, date)
+        logger.info(f"Processed {sleep_count} sleep events for {date}.")
+
 def main():
     # Create directories if they don't exist
     os.makedirs(os.path.join("data", "heartRate"), exist_ok=True)
@@ -156,3 +209,4 @@ def send_notification(success, message):
 
 if __name__ == "__main__":
     main()
+    redownload_missing_data()
