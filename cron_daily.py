@@ -2,6 +2,7 @@ from whoop_data import WhoopClient, get_heart_rate_data, get_sleep_data
 import logging
 import json
 import os
+import time
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
@@ -77,6 +78,21 @@ def fetch_and_save_sleep_data(client, date):
         logger.error(f"An error occurred while fetching sleep data: {e}")
         return 0
 
+def retry_with_backoff(func, retries, backoff_intervals, *args, **kwargs):
+    """Retries a function with exponential backoff intervals."""
+    for attempt in range(retries):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            logger.error(f"Attempt {attempt + 1} failed: {e}")
+            if attempt < retries - 1:
+                wait_time = backoff_intervals[attempt]
+                logger.info(f"Retrying in {wait_time} seconds...")
+                time.sleep(wait_time)
+            else:
+                logger.error("All retry attempts failed.")
+                raise
+
 def main():
     # Create directories if they don't exist
     os.makedirs(os.path.join("data", "heartRate"), exist_ok=True)
@@ -94,7 +110,7 @@ def main():
     yesterday = get_yesterday_date()
     logger.info(f"Processing data for date: {yesterday}")
     
-    try:
+    def task():
         # Initialize the Whoop client
         client = WhoopClient(username=email, password=password)
         logger.info("Whoop client initialized.")
@@ -112,11 +128,13 @@ def main():
             send_notification(True, f"Successfully downloaded {hr_count} HR points and {sleep_count} sleep events for {yesterday}")
         else:
             send_notification(False, f"No data downloaded for {yesterday}")
-        
+    
+    # Retry logic with backoff intervals
+    backoff_intervals = [30 * 60, 60 * 60, 2 * 60 * 60, 4 * 60 * 60, 8* 60 * 60]  # 30 minutes, 1 hour, 2 hours, 4 hours, 8 hours
+    try:
+        retry_with_backoff(task, retries=len(backoff_intervals), backoff_intervals=backoff_intervals)
     except Exception as e:
-        logger.error(f"An error occurred: {e}")
-        # Send failure notification
-        send_notification(False, f"Failed to download Whoop data: {str(e)}")
+        send_notification(False, f"Failed to download Whoop data after retries: {str(e)}")
 
 def send_notification(success, message):
     """Send a PyPushBullet notification if configured"""
