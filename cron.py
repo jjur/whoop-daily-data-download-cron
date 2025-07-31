@@ -45,8 +45,8 @@ def fetch_sleep_data(email, password, start_date=None, end_date=None):
 
 if __name__ == "__main__":
     # Replace with your Whoop credentials
-    email = "domacenoviny@gmail.com"
-    password = "Jurkovasek1@"
+    email = "XXX"
+    password = "XXX"
 
     # Fetch heart rate data
     fetch_hr_data(email, password)
